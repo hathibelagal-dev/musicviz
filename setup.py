@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="musicviz",
-    version="0.0.4",
+    version="0.0.5",
     author="Ashraff Hathibelagal",
     description="A really simple music visualization tool.",
     long_description=long_description,
@@ -33,7 +33,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
     ],
-    keywords="ai text-to-speech speech-synthesis nlp transformer voice",
+    keywords="music audio visualizer visualization cli videogen video",
     project_urls={
         "Source": "https://github.com/hathibelagal-dev/musicviz",
         "Tracker": "https://github.com/hathibelagal-dev/musicviz/issues",
