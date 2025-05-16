@@ -1,9 +1,8 @@
 # MusicViz
 
 ![PyPI - Version](https://img.shields.io/pypi/v/musicviz)
-![Pepy Total Downloads](https://img.shields.io/pepy/dt/musicviz)
 ![PyPI - Status](https://img.shields.io/pypi/status/musicviz)
-
+![PyPI - License](https://img.shields.io/pypi/l/musicviz)
 
 <img width="640" alt="Screenshot 2025-05-16 at 2 39 28 PM" src="https://github.com/user-attachments/assets/057b9af5-2e4a-4b0a-9776-fd873660dbb5" />
 
