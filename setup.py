@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 setup(
     name="musicviz",
-    version="0.0.3",
+    version="0.0.4",
     author="Ashraff Hathibelagal",
     description="A really simple music visualization tool.",
     long_description=long_description,

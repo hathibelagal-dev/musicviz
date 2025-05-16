@@ -16,20 +16,6 @@ def load_audio(audio_path):
 import matplotlib.cm as cm
 import matplotlib.patches as patches
 
-def generate_particles(freqs, fft, num_particles=20, max_freq=5000, width=1920):
-    """Generate particle positions and sizes based on frequency peaks."""
-    particles = []
-    if len(fft) == 0:
-        return particles
-    # Select top frequencies
-    idx = np.argsort(fft)[-num_particles:]
-    for i in idx:
-        x = freqs[i] / max_freq * width  # Scale to width
-        y = np.random.uniform(0, 1080)  # Random y-position
-        size = fft[i] * 20  # Size based on amplitude
-        particles.append((x, y, size))
-    return particles
-
 def make_frame(t, y, sr, duration, height=1080, width=1920, movie_title=""):
     """Generate a single frame with fewer, thicker, non-overlapping bars."""
     # Set up the figure
@@ -52,7 +38,7 @@ def make_frame(t, y, sr, duration, height=1080, width=1920, movie_title=""):
     fft = fft[idx]
     
     # Limit to frequencies up to 5kHz
-    max_freq = 5000
+    max_freq = 4000
     idx = freqs < max_freq
     freqs = freqs[idx]
     fft = fft[idx]
@@ -94,11 +80,6 @@ def make_frame(t, y, sr, duration, height=1080, width=1920, movie_title=""):
         ax.bar(freq, amp * (1 + 0.5 * energy), width=bar_width, color=color,
                edgecolor='black', alpha=0.8)
     
-    # Add particle effects
-    particles = generate_particles(bin_centers, bin_amplitudes, num_particles=20)
-    for x, y, size in particles:
-        circle = patches.Circle((x, y), size, color='white', alpha=0.5)
-        ax.add_patch(circle)
     
     # Configure axes
     ax.set_xlim(0, max_freq)

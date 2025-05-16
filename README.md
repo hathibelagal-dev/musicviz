@@ -6,12 +6,11 @@
 
 <img width="640" alt="Screenshot 2025-05-16 at 2 39 28 PM" src="https://github.com/user-attachments/assets/057b9af5-2e4a-4b0a-9776-fd873660dbb5" />
 
-MusicViz is a Python tool that generates a dynamic music visualizer video from an audio file (MP3 or WAV). It creates a video with animated frequency spectrum bars and particle effects synchronized to the audio, using a colorful plasma colormap and a black background for a vibrant visual experience. The output is an MP4 video file with the audio embedded.
+MusicViz is a Python tool that generates a dynamic music visualizer video from an audio file (MP3 or WAV). It creates a video with animated frequency spectrum bars synchronized to the audio, using a colorful plasma colormap and a black background for a vibrant visual experience. The output is an MP4 video file with the audio embedded.
 
 ## Features
 
 - Generates a visualizer with non-overlapping frequency bars based on the audio's spectrogram.
-- Adds particle effects that respond to frequency peaks for a dynamic look.
 - Supports MP3 and WAV audio inputs.
 - Customizable video title displayed in the output.
 - Produces high-quality 1920x1080 MP4 videos at 30 FPS.
