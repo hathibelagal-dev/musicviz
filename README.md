@@ -1,85 +1,70 @@
-# MusicViz
+# 🎵 MusicViz
 
-![PyPI - Version](https://img.shields.io/pypi/v/musicviz)
-![PyPI - Status](https://img.shields.io/pypi/status/musicviz)
-![PyPI - License](https://img.shields.io/pypi/l/musicviz)
+[![PyPI - Version](https://img.shields.io/pypi/v/musicviz)](https://pypi.org/project/musicviz/)
+[![PyPI - Status](https://img.shields.io/pypi/status/musicviz)](https://pypi.org/project/musicviz/)
+[![PyPI - License](https://img.shields.io/pypi/l/musicviz)](https://github.com/hathibelagal-dev/musicviz/blob/main/LICENSE)
 
-<img width="640" alt="Screenshot 2025-05-16 at 2 39 28 PM" src="https://github.com/user-attachments/assets/057b9af5-2e4a-4b0a-9776-fd873660dbb5" />
+**MusicViz** is a high-performance, aesthetically driven Python tool that transforms your audio tracks into vibrant, neon-drenched visual experiences. Powered by Pygame and Librosa, it generates 1920x1080 MP4 videos with fluid, musically-accurate frequency bars.
 
-MusicViz is a Python tool that generates a dynamic music visualizer video from an audio file (MP3 or WAV). It creates a video with animated frequency spectrum bars synchronized to the audio, using a colorful plasma colormap and a black background for a vibrant visual experience. The output is an MP4 video file with the audio embedded.
+---
 
-## Features
+## ✨ Features
 
-- Generates a visualizer with non-overlapping frequency bars based on the audio's spectrogram.
-- Supports MP3 and WAV audio inputs.
-- Customizable video title displayed in the output.
-- Produces high-quality 1920x1080 MP4 videos at 30 FPS.
-- Uses a plasma colormap for visually appealing, frequency-based coloring.
+- **Neon Aesthetic**: Mirrored, centered frequency bars with soft glow effects and a reactive background that pulses with the bass.
+- **Musically Accurate**: Uses **Mel-Spectrogram** analysis to map frequencies to a human-perceivable scale, ensuring the visuals "feel" right.
+- **Fluid Motion**: Implements **Temporal Smoothing** (exponential decay) for professional, non-flickering bar movement.
+- **High Performance**: Pre-calculated audio analysis and headless Pygame rendering for fast video encoding.
+- **Professional Layout**: Left-aligned titles and optional artist subtitles for a clean, modern look.
 
-## Installation
+## 🚀 Installation
 
-First create a new conda environment:
+### 1. Requirements
+- **Python 3.11+**
+- **FFmpeg**: Required for video encoding.
+    - **macOS**: `brew install ffmpeg`
+    - **Ubuntu**: `sudo apt-get install ffmpeg`
 
-```
+### 2. Setup
+It is recommended to use a virtual environment:
+
+```bash
 conda create -n musicv python=3.11
-```
-
-Then activate it:
-
-```
 conda activate musicv
+pip install musicviz
 ```
 
-You can now install musicviz:
-
-```
-pip3 install musicviz
-```
-
-## Dependencies
-
-### Install FFmpeg:
-
-This tool requires FFmpeg for video encoding.
-
-Download and install FFmpeg from ffmpeg.org or via a package manager:
-
-On Ubuntu:
-
-```
-sudo apt-get install ffmpeg
+For development, install from source:
+```bash
+git clone https://github.com/hathibelagal-dev/musicviz.git
+cd musicviz
+pip install .
 ```
 
-On macOS: 
+## 🎨 Usage
 
-```
-brew install ffmpeg
-```
+Run the `musicviz` command providing your input audio, desired output name, and track details:
 
-Ensure ffmpeg is available in your system PATH.
-
-## Usage
-
-Run the `musicviz` tool from the command line, providing the input audio file, output video file, and a title for the video.
-
-```
-musicviz <input_audio> <output_video> <video_title>
+```bash
+musicviz <input_audio> <output_video> "Track Title" --artist "Artist Name"
 ```
 
-For example:
-
+### Example:
+```bash
+musicviz song.mp3 output.mp4 "Midnight Neon" --artist "SynthWave Artist"
 ```
-musicviz song.mp3 output.mp4 "My Awesome Track"
-```
 
-## Output
+## 🎥 Output Specifications
 
-The output is a 1920x1080 MP4 video with:
+- **Resolution**: 1920x1080 (1080p)
+- **Frame Rate**: 30 FPS
+- **Color Palette**: Dynamic Plasma/Neon (Blue to Pink)
+- **Format**: MP4 (H.264 codec) with AAC audio
 
-- Frequency bars that pulse with the audio's amplitude.
-- A black background with a plasma colormap for bars.
-- The specified title displayed at the top.
-- The original audio embedded in the video.
+---
 
+## 🛠️ Built With
 
-
+- **[Librosa](https://librosa.org/)**: Audio and music processing.
+- **[Pygame](https://www.pygame.org/)**: High-performance graphics rendering.
+- **[MoviePy](https://zulko.github.io/moviepy/)**: Video editing and encoding.
+- **[NumPy](https://numpy.org/)**: Heavy-duty numerical operations.
