@@ -18,7 +18,8 @@ setup(
         "moviepy==1.0.3",
         "librosa==0.10.2.post1",
         "matplotlib==3.10.3",
-        "numpy==2.0.2"        
+        "numpy==2.0.2",
+        "pygame>=2.0.0"
     ],
     entry_points={
         "console_scripts": [
