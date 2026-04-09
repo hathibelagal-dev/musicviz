@@ -33,7 +33,7 @@ def load_and_process_audio(audio_path, fps=30):
     return y, sr, duration, S_db
 
 class NeonVisualizer:
-    def __init__(self, width=1920, height=1080, title="MusicViz"):
+    def __init__(self, width=1920, height=1080, title="MusicViz", artist=None):
         pygame.init()
         if not pygame.font.get_init():
             pygame.font.init()
@@ -41,15 +41,18 @@ class NeonVisualizer:
         self.width = width
         self.height = height
         self.title = title
+        self.artist = artist
         self.surface = pygame.Surface((width, height))
         self.prev_bins = None
         self.decay = 0.88 # Smoothing factor for falling bars
         
-        # Try to load a font
+        # Try to load fonts
         try:
-            self.font = pygame.font.SysFont("Arial", 60, bold=True)
+            self.font = pygame.font.SysFont("Arial", 40, bold=True)
+            self.subtitle_font = pygame.font.SysFont("Arial", 24, italic=True)
         except:
-            self.font = pygame.font.Font(None, 80)
+            self.font = pygame.font.Font(None, 60)
+            self.subtitle_font = pygame.font.Font(None, 36)
             
     def render_frame(self, t, spectrogram, fps):
         # Get the corresponding column from spectrogram
@@ -73,9 +76,9 @@ class NeonVisualizer:
         bg_color = (int(10 + 15 * bass_val), int(10 + 10 * bass_val), int(20 + 20 * bass_val))
         self.surface.fill(bg_color)
         
-        # 2. Draw Title
+        # 2. Draw Title and Artist
         title_surf = self.font.render(self.title, True, (255, 255, 255))
-        title_rect = title_surf.get_rect(center=(self.width // 2, 100))
+        title_rect = title_surf.get_rect(center=(self.width // 2, 80))
         # Draw a soft glow behind title
         for offset in range(5, 0, -1):
             glow_alpha = 50 // offset
@@ -83,6 +86,11 @@ class NeonVisualizer:
             s.set_alpha(glow_alpha)
             self.surface.blit(s, title_rect.move(0, 0).inflate(offset*2, offset*2))
         self.surface.blit(title_surf, title_rect)
+
+        if self.artist:
+            artist_surf = self.subtitle_font.render(self.artist, True, (200, 200, 255))
+            artist_rect = artist_surf.get_rect(center=(self.width // 2, 125))
+            self.surface.blit(artist_surf, artist_rect)
         
         # 3. Draw Bars (Mirrored Centered)
         num_mels = len(current_bins)
@@ -142,14 +150,14 @@ class NeonVisualizer:
         # Return as RGB array (MoviePy expects H, W, 3)
         return pygame.surfarray.array3d(self.surface).swapaxes(0, 1)
 
-def create_visualizer(audio_path, output_path, movie_title):
+def create_visualizer(audio_path, output_path, movie_title, artist=None):
     """Create an enhanced music visualizer video from an audio file."""
     logging.getLogger('moviepy').setLevel(logging.ERROR)
     
     fps = 30
     y, sr, duration, spectrogram = load_and_process_audio(audio_path, fps=fps)
     
-    viz = NeonVisualizer(title=movie_title)
+    viz = NeonVisualizer(title=movie_title, artist=artist)
     
     def make_frame(t):
         return viz.render_frame(t, spectrogram, fps)
@@ -174,6 +182,7 @@ def main():
     parser.add_argument("input", help="Path to input MP3 or WAV file")
     parser.add_argument("output", help="Path to output MP4 file")
     parser.add_argument("title", help="Title of the video")
+    parser.add_argument("--artist", help="Name of the artist (optional subtitle)", default=None)
     args = parser.parse_args()
     
     if not os.path.exists(args.input):
@@ -188,7 +197,7 @@ def main():
         args.output += '.mp4'
     
     try:
-        create_visualizer(args.input, args.output, args.title)
+        create_visualizer(args.input, args.output, args.title, artist=args.artist)
         print("\nSuccess! Visualizer created successfully.")
     except Exception as e:
         print(f"\nAn error occurred: {e}")

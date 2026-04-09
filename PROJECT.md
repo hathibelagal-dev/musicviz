@@ -3,6 +3,7 @@
 ## Accomplishments
 - **Enhanced Visualizer**: Replaced `matplotlib` with `Pygame` for high-quality, high-performance rendering.
 - **Neon Style**: Implemented a mirrored, centered bar layout with vibrant colors, glowing effects, and a reactive background.
+- **Subtitle Support**: Added optional `--artist` argument to display the artist's name below the main title.
 - **Advanced Audio Analysis**: Switched to `librosa.feature.melspectrogram` for musically accurate frequency visualization.
 - **Temporal Smoothing**: Added exponential decay to bar heights to ensure fluid movement and eliminate flickering.
 - **Performance Optimization**: Pre-calculating the entire spectrogram for the track to speed up video generation.
