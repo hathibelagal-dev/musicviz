@@ -77,8 +77,9 @@ class NeonVisualizer:
         self.surface.fill(bg_color)
         
         # 2. Draw Title and Artist
+        margin_left = 100
         title_surf = self.font.render(self.title, True, (255, 255, 255))
-        title_rect = title_surf.get_rect(center=(self.width // 2, 80))
+        title_rect = title_surf.get_rect(topleft=(margin_left, 60))
         # Draw a soft glow behind title
         for offset in range(5, 0, -1):
             glow_alpha = 50 // offset
@@ -89,7 +90,7 @@ class NeonVisualizer:
 
         if self.artist:
             artist_surf = self.subtitle_font.render(self.artist, True, (200, 200, 255))
-            artist_rect = artist_surf.get_rect(center=(self.width // 2, 125))
+            artist_rect = artist_surf.get_rect(topleft=(margin_left, 110))
             self.surface.blit(artist_surf, artist_rect)
         
         # 3. Draw Bars (Mirrored Centered)
