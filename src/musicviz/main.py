@@ -103,7 +103,7 @@ class NeonVisualizer:
         full_bins = np.concatenate([current_bins[::-1], current_bins])
         num_total_bars = len(full_bins)
         
-        bar_width = (self.width - 200) // num_total_bars
+        bar_width = self.width // num_total_bars
         total_w = num_total_bars * bar_width
         start_x = (self.width - total_w) // 2
         center_y = self.height // 2 + 50
