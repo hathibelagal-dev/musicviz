@@ -11,7 +11,7 @@ import pygame.gfxdraw
 os.environ['SDL_VIDEODRIVER'] = 'dummy'
 
 def load_and_process_audio(audio_path, fps=30):
-    """Load audio and pre-calculate Mel-spectrogram."""
+    """Load audio and pre-calculate Mel-spectrogram and beats."""
     print("Loading audio and analyzing frequencies...")
     # Load with librosa
     y, sr = librosa.load(audio_path)
@@ -26,11 +26,18 @@ def load_and_process_audio(audio_path, fps=30):
     S_db = librosa.power_to_db(S, ref=np.max)
     
     # Normalize to [0, 1] range
-    # We use a fixed range for dB to ensure consistency across different tracks
     min_db = -60
     S_db = np.clip((S_db - min_db) / (-min_db), 0, 1)
     
-    return y, sr, duration, S_db
+    # Basic beat detection (onsets)
+    # We look for sudden jumps in total energy
+    energy = np.mean(S_db, axis=0)
+    energy_diff = np.diff(energy, prepend=0)
+    # Threshold for beat detection
+    beat_threshold = np.mean(energy_diff) + 1.5 * np.std(energy_diff)
+    beats = energy_diff > beat_threshold
+    
+    return y, sr, duration, S_db, beats
 
 class NeonVisualizer:
     def __init__(self, width=1920, height=1080, title="MusicViz", artist=None):
@@ -45,6 +52,8 @@ class NeonVisualizer:
         self.surface = pygame.Surface((width, height))
         self.prev_bins = None
         self.decay = 0.88 # Smoothing factor for falling bars
+        self.base_hue = 200 # Initial hue (Blue)
+        self.particles = [] # List for beat explosions
         
         # Try to load fonts
         try:
@@ -54,14 +63,35 @@ class NeonVisualizer:
             self.font = pygame.font.Font(None, 60)
             self.subtitle_font = pygame.font.Font(None, 36)
             
-    def render_frame(self, t, spectrogram, fps):
+    def spawn_particles(self, hue):
+        # Spawn a burst of particles centered horizontally
+        count = 30
+        for _ in range(count):
+            p = {
+                'x': np.random.randint(0, self.width),
+                'y': self.height // 2 + 50,
+                'vx': np.random.uniform(-5, 5),
+                'vy': np.random.uniform(-8, 8),
+                'life': 1.0, # 100% life
+                'size': np.random.randint(4, 10),
+                'color': hue
+            }
+            self.particles.append(p)
+
+    def render_frame(self, t, spectrogram, beats, fps):
         # Get the corresponding column from spectrogram
         frame_idx = int(t * fps)
         if frame_idx >= spectrogram.shape[1]:
             frame_idx = spectrogram.shape[1] - 1
             
         current_bins = spectrogram[:, frame_idx]
+        is_beat = beats[frame_idx]
         
+        # Shift colors on beats
+        if is_beat:
+            self.base_hue = (self.base_hue + 60) % 360
+            self.spawn_particles(self.base_hue)
+            
         # Apply temporal smoothing (decay)
         if self.prev_bins is None:
             self.prev_bins = current_bins
@@ -73,17 +103,26 @@ class NeonVisualizer:
         # 1. Draw Background
         # Subtly pulse background with bass (first few bins)
         bass_val = np.mean(current_bins[:4])
-        bg_color = (int(10 + 15 * bass_val), int(10 + 10 * bass_val), int(20 + 20 * bass_val))
+        # Pulse background more on beats
+        bg_flash = 20 if is_beat else 0
+        bg_color = (
+            int(np.clip(10 + 15 * bass_val + bg_flash, 0, 255)), 
+            int(np.clip(10 + 10 * bass_val + bg_flash, 0, 255)), 
+            int(np.clip(20 + 20 * bass_val + bg_flash, 0, 255))
+        )
         self.surface.fill(bg_color)
         
         # 2. Draw Title and Artist
         margin_left = 100
         title_surf = self.font.render(self.title, True, (255, 255, 255))
         title_rect = title_surf.get_rect(topleft=(margin_left, 60))
-        # Draw a soft glow behind title
+        # Draw a soft glow behind title that matches the current base_hue
+        glow_color = pygame.Color(0)
+        glow_color.hsva = (self.base_hue, 80, 100, 100)
+        
         for offset in range(5, 0, -1):
             glow_alpha = 50 // offset
-            s = self.font.render(self.title, True, (100, 100, 255))
+            s = self.font.render(self.title, True, glow_color)
             s.set_alpha(glow_alpha)
             self.surface.blit(s, title_rect.move(0, 0).inflate(offset*2, offset*2))
         self.surface.blit(title_surf, title_rect)
@@ -93,11 +132,22 @@ class NeonVisualizer:
             artist_rect = artist_surf.get_rect(topleft=(margin_left, 110))
             self.surface.blit(artist_surf, artist_rect)
         
+        # Update and Draw Particles
+        new_particles = []
+        for p in self.particles:
+            p['x'] += p['vx']
+            p['y'] += p['vy']
+            p['life'] -= 0.04 # Fade out
+            if p['life'] > 0:
+                p_color = pygame.Color(0)
+                p_color.hsva = (p['color'], 90, 100, int(p['life'] * 100))
+                pygame.draw.circle(self.surface, p_color, (int(p['x']), int(p['y'])), int(p['size']))
+                new_particles.append(p)
+        self.particles = new_particles
+
         # 3. Draw Bars (Mirrored Centered)
         num_mels = len(current_bins)
         # We'll mirror them: [low ... high | high ... low] or just [low ... high] mirrored
-        # Let's do a classic mirrored center: Low frequencies in middle, highs on sides
-        # Or more standard: Lows on left/right, highs in middle? 
         # Actually, let's do mirrored: [High...Low | Low...High]
         
         full_bins = np.concatenate([current_bins[::-1], current_bins])
@@ -113,14 +163,11 @@ class NeonVisualizer:
             h = int(val * (self.height * 0.4))
             if h < 4: h = 4
             
-            # Color: Map index to a neon palette
-            # Use HSV for vibrant colors
-            # i ranges from 0 to num_total_bars
-            # We want symmetrical colors too
+            # Color: Map index to a neon palette starting from base_hue
             color_idx = abs(i - num_total_bars // 2) / (num_total_bars // 2)
-            hue = 200 + color_idx * 100 # Blue to Purple/Pink range
+            hue = (self.base_hue + color_idx * 60) % 360 # 60 degree spread from base_hue
             color = pygame.Color(0)
-            color.hsva = (hue % 360, 90, 100, 100)
+            color.hsva = (hue, 90, 100, 100)
             
             x = start_x + i * bar_width
             
@@ -132,10 +179,10 @@ class NeonVisualizer:
             # Draw glow
             glow_surf = pygame.Surface((bar_width + 12, h + 12), pygame.SRCALPHA)
             glow_color = pygame.Color(0)
-            glow_color.hsva = (hue % 360, 90, 100, 40) # Lower alpha for glow
+            glow_color.hsva = (hue, 90, 100, 40) # Lower alpha for glow
             pygame.draw.rect(glow_surf, glow_color, (0, 0, bar_width + 12, h + 12), border_radius=4)
             
-            # Blit glow with additive blending if possible, or just normal alpha
+            # Blit glow
             self.surface.blit(glow_surf, (x - 6, center_y - h - 6))
             self.surface.blit(glow_surf, (x - 6, center_y - 6))
             
@@ -156,12 +203,12 @@ def create_visualizer(audio_path, output_path, movie_title, artist=None):
     logging.getLogger('moviepy').setLevel(logging.ERROR)
     
     fps = 30
-    y, sr, duration, spectrogram = load_and_process_audio(audio_path, fps=fps)
+    y, sr, duration, spectrogram, beats = load_and_process_audio(audio_path, fps=fps)
     
     viz = NeonVisualizer(title=movie_title, artist=artist)
     
     def make_frame(t):
-        return viz.render_frame(t, spectrogram, fps)
+        return viz.render_frame(t, spectrogram, beats, fps)
     
     print("Generating video frames and encoding...")
     video = VideoClip(make_frame, duration=duration)
