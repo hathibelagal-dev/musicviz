@@ -6,6 +6,8 @@
 
 **MusicViz** is a high-performance, aesthetically driven Python tool that transforms your audio tracks into vibrant, neon-drenched visual experiences. Powered by Pygame and Librosa, it generates 1920x1080 MP4 videos with fluid, musically-accurate frequency bars.
 
+[Demo on YouTube](https://www.youtube.com/watch?v=F34YuQGJUP8)
+
 ---
 
 ## ✨ Features
