@@ -40,7 +40,7 @@ def load_and_process_audio(audio_path, fps=30):
     return y, sr, duration, S_db, beats
 
 class NeonVisualizer:
-    def __init__(self, width=1920, height=1080, title="MusicViz", artist=None):
+    def __init__(self, width=1920, height=1080, title="MusicViz", artist=None, circular=False):
         pygame.init()
         if not pygame.font.get_init():
             pygame.font.init()
@@ -49,6 +49,7 @@ class NeonVisualizer:
         self.height = height
         self.title = title
         self.artist = artist
+        self.circular = circular
         self.surface = pygame.Surface((width, height))
         self.prev_bins = None
         self.decay = 0.88 # Smoothing factor for falling bars
@@ -64,12 +65,18 @@ class NeonVisualizer:
             self.subtitle_font = pygame.font.Font(None, 36)
             
     def spawn_particles(self, hue):
-        # Spawn a burst of particles centered horizontally
+        # Spawn a burst of particles centered horizontally (or from center if circular)
         count = 30
+        spawn_x = self.width // 2
+        spawn_y = self.height // 2
+        
+        if not self.circular:
+            spawn_y += 50
+
         for _ in range(count):
             p = {
-                'x': np.random.randint(0, self.width),
-                'y': self.height // 2 + 50,
+                'x': np.random.randint(0, self.width) if not self.circular else spawn_x,
+                'y': spawn_y,
                 'vx': np.random.uniform(-5, 5),
                 'vy': np.random.uniform(-8, 8),
                 'life': 1.0, # 100% life
@@ -101,9 +108,7 @@ class NeonVisualizer:
             self.prev_bins = current_bins
             
         # 1. Draw Background
-        # Subtly pulse background with bass (first few bins)
         bass_val = np.mean(current_bins[:4])
-        # Pulse background more on beats
         bg_flash = 20 if is_beat else 0
         bg_color = (
             int(np.clip(10 + 15 * bass_val + bg_flash, 0, 255)), 
@@ -112,11 +117,10 @@ class NeonVisualizer:
         )
         self.surface.fill(bg_color)
         
-        # 2. Draw Title and Artist
+        # 2. Draw Title and Artist (Top Left)
         margin_left = 100
         title_surf = self.font.render(self.title, True, (255, 255, 255))
         title_rect = title_surf.get_rect(topleft=(margin_left, 60))
-        # Draw a soft glow behind title that matches the current base_hue
         glow_color = pygame.Color(0)
         glow_color.hsva = (self.base_hue, 80, 100, 100)
         
@@ -145,67 +149,92 @@ class NeonVisualizer:
                 new_particles.append(p)
         self.particles = new_particles
 
-        # 3. Draw Bars (Mirrored Centered)
-        num_mels = len(current_bins)
-        # We'll mirror them: [low ... high | high ... low] or just [low ... high] mirrored
-        # Actually, let's do mirrored: [High...Low | Low...High]
-        
+        # 3. Draw Bars
         full_bins = np.concatenate([current_bins[::-1], current_bins])
         num_total_bars = len(full_bins)
         
-        bar_width = self.width // num_total_bars
-        total_w = num_total_bars * bar_width
-        start_x = (self.width - total_w) // 2
-        center_y = self.height // 2 + 50
-        
-        for i, val in enumerate(full_bins):
-            # Calculate height
-            h = int(val * (self.height * 0.4))
-            if h < 4: h = 4
+        if self.circular:
+            # Circular layout
+            center_x, center_y = self.width // 2, self.height // 2
+            inner_radius = 150 + int(bass_val * 40) # Pulse the inner circle with bass
+            max_height = self.height * 0.4
             
-            # Color: Map index to a neon palette starting from base_hue
-            color_idx = abs(i - num_total_bars // 2) / (num_total_bars // 2)
-            hue = (self.base_hue + color_idx * 60) % 360 # 60 degree spread from base_hue
-            color = pygame.Color(0)
-            color.hsva = (hue, 90, 100, 100)
+            # Draw a soft glow for the center
+            center_glow = pygame.Surface((inner_radius*2 + 40, inner_radius*2 + 40), pygame.SRCALPHA)
+            pygame.draw.circle(center_glow, (*glow_color[:3], 40), (inner_radius + 20, inner_radius + 20), inner_radius + 15)
+            self.surface.blit(center_glow, (center_x - inner_radius - 20, center_y - inner_radius - 20))
+
+            for i, val in enumerate(full_bins):
+                angle = (i / num_total_bars) * (2 * np.pi)
+                h = int(val * max_height)
+                if h < 4: h = 4
+                
+                color_idx = abs(i - num_total_bars // 2) / (num_total_bars // 2)
+                hue = (self.base_hue + color_idx * 60) % 360
+                color = pygame.Color(0)
+                color.hsva = (hue, 90, 100, 100)
+                
+                # Calculate start and end points for the bar (radiating outwards)
+                # We'll use multiple points to draw a thick line/bar
+                sin_a, cos_a = np.sin(angle), np.cos(angle)
+                
+                start_r = inner_radius
+                end_r = inner_radius + h
+                
+                p1 = (center_x + start_r * cos_a, center_y + start_r * sin_a)
+                p2 = (center_x + end_r * cos_a, center_y + end_r * sin_a)
+                
+                # Draw bar as a thick line
+                pygame.draw.line(self.surface, color, p1, p2, width=max(2, self.width // num_total_bars))
+                
+                # Add a white tip
+                tip_p1 = (center_x + (end_r - 4) * cos_a, center_y + (end_r - 4) * sin_a)
+                pygame.draw.line(self.surface, (255, 255, 255), tip_p1, p2, width=max(2, self.width // num_total_bars))
+        else:
+            # Standard Linear layout
+            bar_width = self.width // num_total_bars
+            total_w = num_total_bars * bar_width
+            start_x = (self.width - total_w) // 2
+            center_y = self.height // 2 + 50
             
-            x = start_x + i * bar_width
+            for i, val in enumerate(full_bins):
+                h = int(val * (self.height * 0.4))
+                if h < 4: h = 4
+                
+                color_idx = abs(i - num_total_bars // 2) / (num_total_bars // 2)
+                hue = (self.base_hue + color_idx * 60) % 360
+                color = pygame.Color(0)
+                color.hsva = (hue, 90, 100, 100)
+                
+                x = start_x + i * bar_width
+                rect_top = pygame.Rect(x + 2, center_y - h, bar_width - 4, h)
+                rect_bottom = pygame.Rect(x + 2, center_y, bar_width - 4, h)
+                
+                glow_surf = pygame.Surface((bar_width + 12, h + 12), pygame.SRCALPHA)
+                glow_c = pygame.Color(0)
+                glow_c.hsva = (hue, 90, 100, 40)
+                pygame.draw.rect(glow_surf, glow_c, (0, 0, bar_width + 12, h + 12), border_radius=4)
+                
+                self.surface.blit(glow_surf, (x - 6, center_y - h - 6))
+                self.surface.blit(glow_surf, (x - 6, center_y - 6))
+                
+                pygame.draw.rect(self.surface, color, rect_top, border_radius=2)
+                pygame.draw.rect(self.surface, color, rect_bottom, border_radius=2)
+                
+                tip_h = max(2, h // 10)
+                pygame.draw.rect(self.surface, (255, 255, 255), (x + 2, center_y - h, bar_width - 4, tip_h), border_radius=1)
+                pygame.draw.rect(self.surface, (255, 255, 255), (x + 2, center_y + h - tip_h, bar_width - 4, tip_h), border_radius=1)
             
-            # Draw top bar
-            rect_top = pygame.Rect(x + 2, center_y - h, bar_width - 4, h)
-            # Draw bottom bar (mirror)
-            rect_bottom = pygame.Rect(x + 2, center_y, bar_width - 4, h)
-            
-            # Draw glow
-            glow_surf = pygame.Surface((bar_width + 12, h + 12), pygame.SRCALPHA)
-            glow_color = pygame.Color(0)
-            glow_color.hsva = (hue, 90, 100, 40) # Lower alpha for glow
-            pygame.draw.rect(glow_surf, glow_color, (0, 0, bar_width + 12, h + 12), border_radius=4)
-            
-            # Blit glow
-            self.surface.blit(glow_surf, (x - 6, center_y - h - 6))
-            self.surface.blit(glow_surf, (x - 6, center_y - 6))
-            
-            # Draw main bars
-            pygame.draw.rect(self.surface, color, rect_top, border_radius=2)
-            pygame.draw.rect(self.surface, color, rect_bottom, border_radius=2)
-            
-            # Add a white "tip" for extra flare
-            tip_h = max(2, h // 10)
-            pygame.draw.rect(self.surface, (255, 255, 255), (x + 2, center_y - h, bar_width - 4, tip_h), border_radius=1)
-            pygame.draw.rect(self.surface, (255, 255, 255), (x + 2, center_y + h - tip_h, bar_width - 4, tip_h), border_radius=1)
-            
-        # Return as RGB array (MoviePy expects H, W, 3)
         return pygame.surfarray.array3d(self.surface).swapaxes(0, 1)
 
-def create_visualizer(audio_path, output_path, movie_title, artist=None):
+def create_visualizer(audio_path, output_path, movie_title, artist=None, circular=False):
     """Create an enhanced music visualizer video from an audio file."""
     logging.getLogger('moviepy').setLevel(logging.ERROR)
     
     fps = 30
     y, sr, duration, spectrogram, beats = load_and_process_audio(audio_path, fps=fps)
     
-    viz = NeonVisualizer(title=movie_title, artist=artist)
+    viz = NeonVisualizer(title=movie_title, artist=artist, circular=circular)
     
     def make_frame(t):
         return viz.render_frame(t, spectrogram, beats, fps)
@@ -231,6 +260,7 @@ def main():
     parser.add_argument("output", help="Path to output MP4 file")
     parser.add_argument("title", help="Title of the video")
     parser.add_argument("--artist", help="Name of the artist (optional subtitle)", default=None)
+    parser.add_argument("--circular", action="store_true", help="Use a circular visualizer design")
     args = parser.parse_args()
     
     if not os.path.exists(args.input):
@@ -245,7 +275,7 @@ def main():
         args.output += '.mp4'
     
     try:
-        create_visualizer(args.input, args.output, args.title, artist=args.artist)
+        create_visualizer(args.input, args.output, args.title, artist=args.artist, circular=args.circular)
         print("\nSuccess! Visualizer created successfully.")
     except Exception as e:
         print(f"\nAn error occurred: {e}")

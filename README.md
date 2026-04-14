@@ -15,6 +15,7 @@
 - **Neon Aesthetic**: Mirrored, centered frequency bars with soft glow effects and a reactive background that pulses with the bass.
 - **Beat Explosions**: Dynamic particle bursts that trigger on every major beat for high-impact visuals.
 - **Beat-Reactive Colors**: The entire color palette shifts significantly on beats, keeping the experience fresh and energetic.
+- **Circular Mode**: Use the `--circular` flag for a radially expanding visualization centered on the screen.
 - **Musically Accurate**: Uses **Mel-Spectrogram** analysis to map frequencies to a human-perceivable scale, ensuring the visuals "feel" right.
 - **Fluid Motion**: Implements **Temporal Smoothing** (exponential decay) for professional, non-flickering bar movement.
 - **High Performance**: Pre-calculated audio analysis and headless Pygame rendering for fast video encoding.
