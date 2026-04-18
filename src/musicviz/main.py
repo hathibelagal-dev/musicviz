@@ -28,6 +28,7 @@ def load_and_process_audio(audio_path, fps=30):
     # Normalize to [0, 1] range
     min_db = -60
     S_db = np.clip((S_db - min_db) / (-min_db), 0, 1)
+    S_db = np.nan_to_num(S_db)
     
     # Simple beat detection
     onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
@@ -183,11 +184,11 @@ class NeonVisualizer:
                 start_r = inner_radius
                 end_r = inner_radius + h
                 
-                p1 = (center_x + start_r * cos_a, center_y + start_r * sin_a)
-                p2 = (center_x + end_r * cos_a, center_y + end_r * sin_a)
+                p1 = (int(center_x + start_r * cos_a), int(center_y + start_r * sin_a))
+                p2 = (int(center_x + end_r * cos_a), int(center_y + end_r * sin_a))
                 
                 pygame.draw.line(self.surface, color, p1, p2, width=max(2, self.width // num_total_bars))
-                tip_p1 = (center_x + (end_r - 4) * cos_a, center_y + (end_r - 4) * sin_a)
+                tip_p1 = (int(center_x + (end_r - 4) * cos_a), int(center_y + (end_r - 4) * sin_a))
                 pygame.draw.line(self.surface, (255, 255, 255), tip_p1, p2, width=max(2, self.width // num_total_bars))
 
         elif self.style == "waveform":
@@ -214,8 +215,13 @@ class NeonVisualizer:
                 for w in range(10, 1, -2):
                     c = pygame.Color(0)
                     c.hsva = (hue, 90, 100, 40 // (w // 2))
-                    pygame.draw.line(self.surface, c, points_top[i], points_top[i+1], width=w)
-                    pygame.draw.line(self.surface, c, points_bottom[i], points_bottom[i+1], width=w)
+                    # Cast to int for pygame.draw.line
+                    p1 = (int(points_top[i][0]), int(points_top[i][1]))
+                    p2 = (int(points_top[i+1][0]), int(points_top[i+1][1]))
+                    p3 = (int(points_bottom[i][0]), int(points_bottom[i][1]))
+                    p4 = (int(points_bottom[i+1][0]), int(points_bottom[i+1][1]))
+                    pygame.draw.line(self.surface, c, p1, p2, width=w)
+                    pygame.draw.line(self.surface, c, p3, p4, width=w)
                 
                 # Main lines
                 c = pygame.Color(0)

@@ -7,6 +7,8 @@
 - **Beat-Reactive Particles**: Implemented a "Beat Explosion" particle system that triggers on audio onsets.
 - **Dynamic Colors**: Added "Beat-Reactive Colors" that shift the entire palette on every major beat for high energy.
 - **Circular Mode**: Added a new `--circular` flag for a radially expanding visualization design.
+- **Waveform Mode**: Added a new `--waveform` flag for a minimalist, glowing "String" visualization.
+- **Bug Fixes**: Fixed `TypeError` by casting coordinates to `int` for Pygame and added `NaN` protection for audio processing.
 - **Documentation Overhaul**: Completely rewrote `README.md` to highlight the new high-performance neon features and aesthetics.
 - **Advanced Audio Analysis**: Switched to `librosa.feature.melspectrogram` for musically accurate frequency visualization.
 - **Temporal Smoothing**: Added exponential decay to bar heights to ensure fluid movement and eliminate flickering.
