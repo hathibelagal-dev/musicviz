@@ -29,18 +29,23 @@ def load_and_process_audio(audio_path, fps=30):
     min_db = -60
     S_db = np.clip((S_db - min_db) / (-min_db), 0, 1)
     
-    # Basic beat detection (onsets)
-    # We look for sudden jumps in total energy
-    energy = np.mean(S_db, axis=0)
-    energy_diff = np.diff(energy, prepend=0)
-    # Threshold for beat detection
-    beat_threshold = np.mean(energy_diff) + 1.5 * np.std(energy_diff)
+    # Simple beat detection
+    onset_env = librosa.onset.onset_strength(y=y, sr=sr, hop_length=hop_length)
+    # Match length to spectrogram
+    if len(onset_env) > S_db.shape[1]:
+        onset_env = onset_env[:S_db.shape[1]]
+    elif len(onset_env) < S_db.shape[1]:
+        onset_env = np.pad(onset_env, (0, S_db.shape[1] - len(onset_env)))
+        
+    # Detect sharp increases in energy
+    energy_diff = np.diff(onset_env, prepend=0)
+    beat_threshold = np.mean(energy_diff) + 2.0 * np.std(energy_diff)
     beats = energy_diff > beat_threshold
     
     return y, sr, duration, S_db, beats
 
 class NeonVisualizer:
-    def __init__(self, width=1920, height=1080, title="MusicViz", artist=None, circular=False):
+    def __init__(self, width=1920, height=1080, title="MusicViz", artist=None, style="bars"):
         pygame.init()
         if not pygame.font.get_init():
             pygame.font.init()
@@ -49,7 +54,7 @@ class NeonVisualizer:
         self.height = height
         self.title = title
         self.artist = artist
-        self.circular = circular
+        self.style = style # "bars", "circular", or "waveform"
         self.surface = pygame.Surface((width, height))
         self.prev_bins = None
         self.decay = 0.88 # Smoothing factor for falling bars
@@ -70,12 +75,12 @@ class NeonVisualizer:
         spawn_x = self.width // 2
         spawn_y = self.height // 2
         
-        if not self.circular:
+        if self.style == "bars" or self.style == "waveform":
             spawn_y += 50
 
         for _ in range(count):
             p = {
-                'x': np.random.randint(0, self.width) if not self.circular else spawn_x,
+                'x': np.random.randint(0, self.width) if self.style != "circular" else spawn_x,
                 'y': spawn_y,
                 'vx': np.random.uniform(-5, 5),
                 'vy': np.random.uniform(-8, 8),
@@ -148,12 +153,12 @@ class NeonVisualizer:
                 pygame.draw.circle(self.surface, p_color, (int(p['x']), int(p['y'])), int(p['size']))
                 new_particles.append(p)
         self.particles = new_particles
-
-        # 3. Draw Bars
+        
+        # 3. Draw Visualization
         full_bins = np.concatenate([current_bins[::-1], current_bins])
         num_total_bars = len(full_bins)
         
-        if self.circular:
+        if self.style == "circular":
             # Circular layout
             center_x, center_y = self.width // 2, self.height // 2
             inner_radius = 150 + int(bass_val * 40) # Pulse the inner circle with bass
@@ -174,24 +179,56 @@ class NeonVisualizer:
                 color = pygame.Color(0)
                 color.hsva = (hue, 90, 100, 100)
                 
-                # Calculate start and end points for the bar (radiating outwards)
-                # We'll use multiple points to draw a thick line/bar
                 sin_a, cos_a = np.sin(angle), np.cos(angle)
-                
                 start_r = inner_radius
                 end_r = inner_radius + h
                 
                 p1 = (center_x + start_r * cos_a, center_y + start_r * sin_a)
                 p2 = (center_x + end_r * cos_a, center_y + end_r * sin_a)
                 
-                # Draw bar as a thick line
                 pygame.draw.line(self.surface, color, p1, p2, width=max(2, self.width // num_total_bars))
-                
-                # Add a white tip
                 tip_p1 = (center_x + (end_r - 4) * cos_a, center_y + (end_r - 4) * sin_a)
                 pygame.draw.line(self.surface, (255, 255, 255), tip_p1, p2, width=max(2, self.width // num_total_bars))
+
+        elif self.style == "waveform":
+            # Waveform style
+            center_y = self.height // 2 + 50
+            margin_x = 100
+            draw_width = self.width - 2 * margin_x
+            
+            points_top = []
+            points_bottom = []
+            
+            for i, val in enumerate(full_bins):
+                x = margin_x + (i / (num_total_bars - 1)) * draw_width
+                h = val * (self.height * 0.35)
+                points_top.append((x, center_y - h))
+                points_bottom.append((x, center_y + h))
+            
+            # Draw glow and then lines
+            for i in range(len(points_top) - 1):
+                color_idx = abs(i - num_total_bars // 2) / (num_total_bars // 2)
+                hue = (self.base_hue + color_idx * 60) % 360
+                
+                # Glow (using circles at points or lines with transparency)
+                for w in range(10, 1, -2):
+                    c = pygame.Color(0)
+                    c.hsva = (hue, 90, 100, 40 // (w // 2))
+                    pygame.draw.line(self.surface, c, points_top[i], points_top[i+1], width=w)
+                    pygame.draw.line(self.surface, c, points_bottom[i], points_bottom[i+1], width=w)
+                
+                # Main lines
+                c = pygame.Color(0)
+                c.hsva = (hue, 90, 100, 100)
+                pygame.draw.aaline(self.surface, c, points_top[i], points_top[i+1])
+                pygame.draw.aaline(self.surface, c, points_bottom[i], points_bottom[i+1])
+                
+                # White core
+                pygame.draw.aaline(self.surface, (255, 255, 255), (points_top[i][0], points_top[i][1]+1), (points_top[i+1][0], points_top[i+1][1]+1))
+                pygame.draw.aaline(self.surface, (255, 255, 255), (points_bottom[i][0], points_bottom[i][1]-1), (points_bottom[i+1][0], points_bottom[i+1][1]-1))
+
         else:
-            # Standard Linear layout
+            # Standard Linear layout (bars)
             bar_width = self.width // num_total_bars
             total_w = num_total_bars * bar_width
             start_x = (self.width - total_w) // 2
@@ -227,14 +264,14 @@ class NeonVisualizer:
             
         return pygame.surfarray.array3d(self.surface).swapaxes(0, 1)
 
-def create_visualizer(audio_path, output_path, movie_title, artist=None, circular=False):
+def create_visualizer(audio_path, output_path, movie_title, artist=None, style="bars"):
     """Create an enhanced music visualizer video from an audio file."""
     logging.getLogger('moviepy').setLevel(logging.ERROR)
     
     fps = 30
     y, sr, duration, spectrogram, beats = load_and_process_audio(audio_path, fps=fps)
     
-    viz = NeonVisualizer(title=movie_title, artist=artist, circular=circular)
+    viz = NeonVisualizer(title=movie_title, artist=artist, style=style)
     
     def make_frame(t):
         return viz.render_frame(t, spectrogram, beats, fps)
@@ -261,6 +298,7 @@ def main():
     parser.add_argument("title", help="Title of the video")
     parser.add_argument("--artist", help="Name of the artist (optional subtitle)", default=None)
     parser.add_argument("--circular", action="store_true", help="Use a circular visualizer design")
+    parser.add_argument("--waveform", action="store_true", help="Use a minimalist waveform string design")
     args = parser.parse_args()
     
     if not os.path.exists(args.input):
@@ -274,8 +312,14 @@ def main():
     if not args.output.lower().endswith('.mp4'):
         args.output += '.mp4'
     
+    style = "bars"
+    if args.circular:
+        style = "circular"
+    elif args.waveform:
+        style = "waveform"
+    
     try:
-        create_visualizer(args.input, args.output, args.title, artist=args.artist, circular=args.circular)
+        create_visualizer(args.input, args.output, args.title, artist=args.artist, style=style)
         print("\nSuccess! Visualizer created successfully.")
     except Exception as e:
         print(f"\nAn error occurred: {e}")
